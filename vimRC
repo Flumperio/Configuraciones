@@ -1,0 +1,96 @@
+call plug#begin()
+
+" List your plugins here
+Plug 'preservim/nerdtree', { 'on': 'NERDTreeToggle' }
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+
+call plug#end()
+"  PrepararNerdTreeAbra la tecla de acceso directo, puede cambiarlo usted mismo
+map <F2> :NERDTreeMirror<CR>
+map <F2> :NERDTreeToggle<CR>
+"   Opciones recomendadas por coc
+" ----------------------------
+set hidden
+set nobackup
+set nowritebackup
+set updatetime=300
+set shortmess+=c
+set signcolumn=yes
+set cmdheight=2
+set completeopt=menuone,noinsert,noselect
+" ----------------------------
+"   Mapas para usar coc.nvim
+" ----------------------------
+
+" Ir a definición, referencias, etc.
+nmap <silent> gd <Plug>(coc-definition)
+nmap <silent> gr <Plug>(coc-references)
+nmap <silent> gi <Plug>(coc-implementation)
+nmap <silent> gy <Plug>(coc-type-definition)
+
+inoremap <silent><expr> <TAB> pumvisible() ? "\<C-n>" : "\<TAB>"
+inoremap <silent><expr> <ENTER> pumvisible() ? coc#_select_confirm() : "\<ENTER>"
+inoremap <silent><expr> <S-TAB> pumvisible() ? "\<C-p>" : "\<S-TAB>"
+
+" Documentación flotante
+nnoremap <silent> K :call CocActionAsync('doHover')<CR>
+
+" Formatear el documento actual
+nmap <leader>f  <Plug>(coc-format)
+
+" ----------------------------
+"   Líneas de ayuda visual
+" ----------------------------
+syntax on
+filetype plugin indent on
+set number
+" ----------------------------
+"   Usa sistema de portapapeles
+" ----------------------------
+"set clipboard=unnamedplus
+" There are certain files that we would never want to edit with Vim.
+" Wildmenu will ignore files with these extensions.
+set wildignore=*.docx,*.jpg,*.png,*.gif,*.pdf,*.pyc,*.exe,*.flv,*.img,*.xlsx
+
+" STATUS LINE ------------------------------------------------------------ {{{
+
+" Clear status line when vimrc is reloaded.
+set statusline=
+
+" Status line left side.
+set statusline+=\ %F\ %M\ %Y\ %R
+
+" Use a divider to separate the left side from the right side.
+set statusline+=%=
+
+" Status line right side.
+set statusline+=\ ascii:\ %b\ hex:\ 0x%B\ row:\ %l\ col:\ %c\ percent:\ %p%%
+
+" Show the status on the second to last line.
+set laststatus=2
+
+" }}}
+set t_Co=256
+colorscheme molokai
+
+"---------------------------------------------
+"             Espaciados           
+"---------------------------------------------
+
+" Reglas generales (por defecto)
+set tabstop=4
+set shiftwidth=4
+set softtabstop=4
+set expandtab
+
+" HTML/CSS/JS: usa 2 espacios
+autocmd FileType html,css,javascript,typescript,json setlocal tabstop=2 shiftwidth=2 softtabstop=2 expandtab
+
+" Python: 4 espacios (por si quieres forzarlo)
+autocmd FileType python setlocal tabstop=4 shiftwidth=4 softtabstop=4 expandtab
+
+" Makefile: usa tabs reales
+autocmd FileType make setlocal noexpandtab
+
+" Go: usa tabs reales con ancho 8 (por convención)
+autocmd FileType go setlocal noexpandtab tabstop=8 shiftwidth=8
