@@ -56,7 +56,7 @@ require("lazy").setup({
 })
 vim.cmd.colorscheme("unokai")
 
-local bg = "#1e1e1e"
+local bg = "#101010"
 -- :local fg = "#c0c0c0" -- gris claro para texto, opcional
 
 -- Fondo de ventanas principales

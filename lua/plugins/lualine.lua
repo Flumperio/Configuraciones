@@ -7,7 +7,7 @@ return {
       require("lualine").setup({
         options = {
           icons_enabled = true,
-          theme = "auto", -- Detecta el tema de colores activo
+          theme = "molokai", -- Detecta el tema de colores activo
           component_separators = { left = "", right = "" },
           section_separators = { left = "", right = "" },
           disabled_filetypes = {
