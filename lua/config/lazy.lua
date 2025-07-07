@@ -21,6 +21,7 @@ vim.opt.rtp:prepend(lazypath)
 vim.opt.number = true
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
+
 -- Indentación para HTML, CSS, JavaScript y derivados: 2 espacios
 vim.api.nvim_create_autocmd("FileType", {
   pattern = { "html", "css", "javascript", "javascriptreact", "typescript", "typescriptreact" },
@@ -53,3 +54,35 @@ require("lazy").setup({
   -- automatically check for plugin updates
   checker = { enabled = true },
 })
+vim.cmd.colorscheme("unokai")
+
+local bg = "#1e1e1e"
+-- :local fg = "#c0c0c0" -- gris claro para texto, opcional
+
+-- Fondo de ventanas principales
+vim.api.nvim_set_hl(0, "Normal",       { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "NormalNC",     { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "NormalFloat",  { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "SignColumn",   { bg = bg })
+vim.api.nvim_set_hl(0, "VertSplit",    { bg = bg, fg = bg })
+
+-- Fondo para ventanas flotantes y popups
+vim.api.nvim_set_hl(0, "FloatBorder",  { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "Pmenu",        { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "PmenuSel",     { bg = "#333333", fg = fg })
+vim.api.nvim_set_hl(0, "CursorLine",   { bg = "#2a2a2a" })
+
+-- Telescope
+vim.api.nvim_set_hl(0, "TelescopeNormal",        { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "TelescopeBorder",        { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "TelescopePromptNormal",  { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "TelescopePromptBorder",  { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "TelescopeResultsNormal", { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "TelescopePreviewNormal", { bg = bg, fg = fg })
+
+-- NvimTree
+vim.api.nvim_set_hl(0, "NvimTreeNormal",         { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "NvimTreeNormalNC",       { bg = bg, fg = fg })
+vim.api.nvim_set_hl(0, "NvimTreeEndOfBuffer",    { bg = bg })
+vim.api.nvim_set_hl(0, "NvimTreeVertSplit",      { bg = bg, fg = bg })
+
