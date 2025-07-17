@@ -1,0 +1,116 @@
+return {
+  {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+      "rcarriga/nvim-dap-ui",
+      "theHamsta/nvim-dap-virtual-text",
+      "nvim-telescope/telescope.nvim",
+      "nvim-telescope/telescope-dap.nvim",
+      "williamboman/mason-nvim-dap.nvim",
+      "mfussenegger/nvim-dap-python",
+      "nvim-neotest/nvim-nio"
+    },
+    config = function()
+      local dap = require("dap")
+      local mason_dap = require("mason-nvim-dap")
+      local dapui = require("dapui")
+
+      mason_dap.setup({
+        ensure_installed = { "cppdbg", "python" },
+        automatic_installation = true,
+      })
+
+      require("nvim-dap-virtual-text").setup()
+      dapui.setup()
+      vim.fn.sign_define("DapBreakpoint", {text="🐞", texthl="", linehl="", numhl=""})
+
+      dap.listeners.before.attach.dapui_config = function() dapui.open() end
+      dap.listeners.before.launch.dapui_config = function() dapui.open() end
+      dap.listeners.before.event_terminated.dapui_config = function() dapui.close() end
+      dap.listeners.before.event_exited.dapui_config = function() dapui.close() end
+
+      -- Adaptador para C/C++
+      dap.adapters.cppdbg = {
+        id = 'cppdbg',
+        type = 'executable',
+        command = vim.fn.stdpath("data") .. "/mason/packages/cpptools/extension/debugAdapters/bin/OpenDebugAD7",
+        options = {
+          detached = false
+        }
+      }
+      dap.configurations.c = {
+        {
+          name = "Launch file",
+          type = "cppdbg",
+          request = "launch",
+          program = function()
+            return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+          end,
+          cwd = "${workspaceFolder}",
+          stopAtEntry = false,
+          externalConsole = true,
+          MIMode = "lldb",
+        },
+      }
+      dap.configurations.cpp = dap.configurations.c
+
+--      dap.defaults.fallback.external_terminal = {
+--        command = '/Applications/iTerm.app/Contents/MacOS/iTerm2', -- Ajusta si prefieres Terminal de Apple
+--        args = {'-e'},
+--      }
+
+      -- Python DAP
+      local python_path = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
+      require("dap-python").setup(python_path)
+      dap.configurations.python = {
+        {
+          type = 'python',
+          request = 'launch',
+          name = "Launch Python file",
+          program = "${file}",
+          console = "externalTerminal",
+          pythonPath = function()
+            local cwd = vim.fn.getcwd()
+            if vim.fn.executable(cwd .. "/venv/bin/python") == 1 then
+              return cwd .. "/venv/bin/python"
+            elseif vim.fn.executable(cwd .. "/.venv/bin/python") == 1 then
+              return cwd .. "/.venv/bin/python"
+            else
+              return python_path
+            end
+          end,
+        },
+      }
+
+      require("telescope").load_extension("dap")
+
+      -- Atajos de teclado para debugging
+      local function map(lhs, rhs, desc)
+        vim.keymap.set("n", lhs, rhs, {desc = desc})
+      end
+
+      -- Control básico de DAP
+      map("<F5>", function() dap.continue() end, "Iniciar/Continuar debug")
+      map("<F10>", function() dap.step_over() end, "Step over")
+      map("<F11>", function() dap.step_into() end, "Step into")
+      map("<F12>", function() dap.step_out() end, "Step out")
+      map("<leader>b", function() dap.toggle_breakpoint() end, "Toggle breakpoint")
+      map("<leader>B", function() dap.set_breakpoint(vim.fn.input("Condición del breakpoint: ")) end, "Breakpoint condicional")
+      map("<leader>l", function() dap.run_last() end, "Repetir última sesión debug")
+      map("<leader>r", function() dap.repl.open() end, "Abrir DAP REPL")
+      map("<leader>p", function() dap.pause() end, "Pausar ejecución debug")
+      map("<leader>s", function() dap.terminate() end, "Terminar debug")
+      map("<leader>c", function() dap.clear_breakpoints() end, "Limpiar breakpoints")
+
+      -- Visualización con DAP UI
+      map("<leader>du", function() dapui.toggle() end, "Toggle DAP UI")
+
+      -- Atajos de Telescope-DAP
+      map("<leader>f", "<cmd>Telescope dap frames<CR>", "Telescope: Frames")
+      map("<leader>v", "<cmd>Telescope dap variables<CR>", "Telescope: Variables")
+      map("<leader>bk", "<cmd>Telescope dap list_breakpoints<CR>", "Telescope: Breakpoints")
+      map("<leader>cmd", "<cmd>Telescope dap commands<CR>", "Telescope: Comandos DAP")
+    end
+  },
+}
+

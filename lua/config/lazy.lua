@@ -85,4 +85,6 @@ vim.api.nvim_set_hl(0, "NvimTreeNormal",         { bg = bg, fg = fg })
 vim.api.nvim_set_hl(0, "NvimTreeNormalNC",       { bg = bg, fg = fg })
 vim.api.nvim_set_hl(0, "NvimTreeEndOfBuffer",    { bg = bg })
 vim.api.nvim_set_hl(0, "NvimTreeVertSplit",      { bg = bg, fg = bg })
+vim.cmd [[highlight WinSeparator guifg=#FFFFFF guibg=NONE ctermfg=White ctermbg=NONE]]
+
 

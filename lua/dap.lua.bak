@@ -1,0 +1,289 @@
+-- lua/plugins/dap.lua
+-- Configuración DAP portátil (macOS + Linux) con terminal externo estándar.
+-- Lenguajes: C, C++, Python.
+-- Stack: Mason, nvim-dap, dap-ui, dap-virtual-text, dap-python, Telescope, telescope-dap.
+-- Características:
+--   - Terminal externo (CodeLLDB: terminal="external", debugpy: console="externalTerminal")
+--   - Config Fallback integrada (terminal="integrated"/console="integratedTerminal")
+--   - Detección automática de ejecutable (Lua, sin comandos externos)
+--   - Pregunta por args
+--   - Keymaps + pickers Telescope-DAP
+
+return {
+  ---------------------------------------------------------------------------
+  -- Mason primero (instala herramientas externas)
+  ---------------------------------------------------------------------------
+  {
+    "williamboman/mason.nvim",
+    build = ":MasonUpdate",
+    lazy = false,
+    config = function()
+      require("mason").setup()
+    end,
+  },
+
+  ---------------------------------------------------------------------------
+  -- Telescope núcleo
+  ---------------------------------------------------------------------------
+  {
+    "nvim-telescope/telescope.nvim",
+    version = false,
+    dependencies = { "nvim-lua/plenary.nvim" },
+    cmd = "Telescope",
+    keys = {
+      { "<Leader>ff", function() require("telescope.builtin").find_files() end, desc = "Telescope archivos" },
+      { "<Leader>fg", function() require("telescope.builtin").live_grep() end,   desc = "Telescope grep" },
+      { "<Leader>fb", function() require("telescope.builtin").buffers() end,     desc = "Telescope buffers" },
+      { "<Leader>fh", function() require("telescope.builtin").help_tags() end,   desc = "Telescope ayuda" },
+    },
+    config = function()
+      require("telescope").setup({})
+      pcall(function() require("telescope").load_extension("dap") end)
+    end,
+  },
+
+  ---------------------------------------------------------------------------
+  -- Extensión Telescope-DAP
+  ---------------------------------------------------------------------------
+  {
+    "nvim-telescope/telescope-dap.nvim",
+    dependencies = { "nvim-telescope/telescope.nvim" },
+    config = function()
+      pcall(function() require("telescope").load_extension("dap") end)
+    end,
+  },
+
+  ---------------------------------------------------------------------------
+  -- DAP stack
+  ---------------------------------------------------------------------------
+  {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+      "rcarriga/nvim-dap-ui",
+      "theHamsta/nvim-dap-virtual-text",
+      "mfussenegger/nvim-dap-python",
+      "nvim-neotest/nvim-nio",
+      "jay-babu/mason-nvim-dap.nvim",
+    },
+    config = function()
+      -----------------------------------------------------------------------
+      -- Instala adaptadores DAP (codelldb, debugpy) vía Mason
+      -----------------------------------------------------------------------
+      require("mason-nvim-dap").setup({
+        ensure_installed = { "codelldb", "debugpy" },
+        automatic_installation = true,
+      })
+
+      local dap = require("dap")
+      local dapui = require("dapui")
+      dapui.setup()
+      require("nvim-dap-virtual-text").setup()
+
+      -- UI auto
+      dap.listeners.before.attach.dapui_config = function() dapui.open() end
+      dap.listeners.before.launch.dapui_config = function() dapui.open() end
+      dap.listeners.before.event_terminated.dapui_config = function() dapui.close() end
+      dap.listeners.before.event_exited.dapui_config = function() dapui.close() end
+
+      -----------------------------------------------------------------------
+      -- Rutas Mason
+      -----------------------------------------------------------------------
+      local mason_data = vim.fn.stdpath("data") .. "/mason"
+
+      local debugpy_python = mason_data .. "/packages/debugpy/venv/bin/python"
+      if vim.fn.executable(debugpy_python) == 0 then
+        debugpy_python = "python3" -- fallback
+      end
+
+      local codelldb_cmd = mason_data .. "/bin/codelldb"
+      if vim.fn.executable(codelldb_cmd) == 0 then
+        codelldb_cmd = "codelldb" -- fallback
+      end
+
+      -----------------------------------------------------------------------
+      -- Detección de ejecutable reciente (Lua, sin 'find')
+      -----------------------------------------------------------------------
+      local function collect_execs(dir, acc)
+        local glob = vim.fn.globpath(dir, "*", 0, 1)
+        for _, path in ipairs(glob) do
+          local stat = vim.loop.fs_stat(path)
+          if stat then
+            if stat.type == "file" then
+              -- comprobamos permiso de ejecución
+              if vim.fn.executable(path) == 1 then
+                table.insert(acc, { path = path, mtime = stat.mtime.sec or stat.mtime })
+              end
+            elseif stat.type == "directory" then
+              -- evita recursión profunda en .git / build artefacts enormes
+              local name = vim.fn.fnamemodify(path, ":t")
+              if name ~= ".git" and name ~= "__pycache__" then
+                collect_execs(path, acc)
+              end
+            end
+          end
+        end
+      end
+
+      local function find_executable()
+        local cwd = vim.fn.getcwd()
+        local build_dir = cwd .. "/build"
+        local search_root = vim.fn.isdirectory(build_dir) == 1 and build_dir or cwd
+
+        local found = {}
+        collect_execs(search_root, found)
+        table.sort(found, function(a, b) return a.mtime > b.mtime end)
+
+        if #found > 0 then
+          return found[1].path
+        end
+        return vim.fn.input("Ruta al binario: ", cwd .. "/", "file")
+      end
+
+      -----------------------------------------------------------------------
+      -- Preguntar args cada vez
+      -----------------------------------------------------------------------
+      local function get_args()
+        local args_string = vim.fn.input("Args: ")
+        if args_string == nil or args_string == "" then
+          return {}
+        end
+        -- separa por espacios; respeta cadenas simples/dobles si quieres algo más complejo
+        return vim.split(args_string, "%s+")
+      end
+
+      -----------------------------------------------------------------------
+      -- Adaptador CodeLLDB
+      -----------------------------------------------------------------------
+     dap.adapters.codelldb = {
+       type = "executable",
+       command = codelldb_cmd,
+       }
+      -----------------------------------------------------------------------
+      -- Configuraciones C/C++: externa + integrada
+      -----------------------------------------------------------------------
+--      dap.configurations.cpp = {
+--        -- Externa (portable)
+--        {
+--          name = "Debug (External Terminal)",
+--          type = "codelldb",
+--          request = "launch",
+--          program = find_executable,
+--          cwd = "${workspaceFolder}",
+--          stopOnEntry = false,
+--          args = get_args,
+--          terminal = "external",         -- << clave
+--        },
+--        -- Integrada (fallback siempre disponible)
+--        {
+--          name = "Debug (Integrated Terminal)",
+--          type = "codelldb",
+--          request = "launch",
+--          program = find_executable,
+--          cwd = "${workspaceFolder}",
+--          stopOnEntry = false,
+--          args = get_args,
+--          terminal = "integrated",       -- usa terminal de la UI del cliente
+--        },
+--      }
+--      dap.configurations.c = dap.configurations.cpp
+-- Función para abrir terminal externo (iTerm por defecto)
+local function open_in_terminal(cmd)
+  -- cmd es una lista con el programa y sus argumentos
+  local args = table.concat(cmd, " ")
+  -- Ejecuta en iTerm2; usa "Terminal" si prefieres Terminal.app
+  vim.fn.jobstart({ "open", "-a", "Terminal.app", "--args", "bash", "-lc", args }, { detach = true })
+end
+
+-- Interceptamos el request runInTerminal
+dap.defaults.fallback.external_terminal = {
+  command = open_in_terminal,
+}
+
+-- Configuración para C/C++
+dap.configurations.cpp = {
+  {
+    name = "Debug con iTerm2",
+    type = "codelldb",
+    request = "launch",
+    program = function()
+      return vim.fn.input("Ejecutable: ", vim.fn.getcwd() .. "/", "file")
+    end,
+    cwd = "${workspaceFolder}",
+    stopOnEntry = false,
+    args = function()
+      local args_str = vim.fn.input("Args: ")
+      return vim.split(args_str, " ")
+    end,
+    console = "externalTerminal", -- importante
+  },
+}
+dap.configurations.c = dap.configurations.cpp
+
+      -----------------------------------------------------------------------
+      -- Python: externa + integrada
+      -----------------------------------------------------------------------
+      require("dap-python").setup(debugpy_python)
+      -- Opciones adicionales manuales
+      dap.configurations.python = {
+        {
+          type = "python",
+          request = "launch",
+          name = "Debug Python (External Terminal)",
+          program = "${file}",
+          pythonPath = function()
+            local venv = os.getenv("VIRTUAL_ENV")
+            if venv then
+              return venv .. "/bin/python"
+            end
+            return debugpy_python
+          end,
+          console = "externalTerminal",
+        },
+        {
+          type = "python",
+          request = "launch",
+          name = "Debug Python (Integrated Terminal)",
+          program = "${file}",
+          pythonPath = function()
+            local venv = os.getenv("VIRTUAL_ENV")
+            if venv then
+              return venv .. "/bin/python"
+            end
+            return debugpy_python
+          end,
+          console = "integratedTerminal",
+        },
+      }
+
+      -----------------------------------------------------------------------
+      -- Keymaps básicos
+      -----------------------------------------------------------------------
+      local map = vim.keymap.set
+      map("n", "<F5>",  function() dap.continue() end,             { desc = "DAP Continue" })
+      map("n", "<F10>", function() dap.step_over() end,            { desc = "DAP Step Over" })
+      map("n", "<F11>", function() dap.step_into() end,            { desc = "DAP Step Into" })
+      map("n", "<F12>", function() dap.step_out() end,             { desc = "DAP Step Out" })
+      map("n", "<Leader>b", function() dap.toggle_breakpoint() end,{ desc = "Toggle Breakpoint" })
+      map("n", "<Leader>B", function()
+        dap.set_breakpoint(vim.fn.input("Condición: "))
+      end, { desc = "Breakpoint Condicional" })
+      map("n", "<Leader>dr", function() dap.repl.open() end,       { desc = "DAP REPL" })
+      map("n", "<Leader>dl", function() dap.run_last() end,        { desc = "DAP Run Last" })
+      map("n", "<Leader>dR", function() dap.restart() end,         { desc = "DAP Restart" })
+      map("n", "<Leader>dx", function() dapui.close() end,         { desc = "Cerrar DAP UI" })
+
+      -- Telescope-DAP pickers
+      local ok, telescope = pcall(require, "telescope")
+      if ok then
+        pcall(telescope.load_extension, "dap")
+        local t_dap = function(picker) return function() telescope.extensions.dap[picker]() end end
+        map("n", "<Leader>db", t_dap("list_breakpoints"), { desc = "DAP Breakpoints" })
+        map("n", "<Leader>df", t_dap("frames"),           { desc = "DAP Frames" })
+        map("n", "<Leader>dv", t_dap("variables"),        { desc = "DAP Variables" })
+        map("n", "<Leader>dc", t_dap("configurations"),   { desc = "DAP Configurations" })
+        map("n", "<Leader>dd", t_dap("commands"),         { desc = "DAP Commands" })
+      end
+    end,
+  },
+}
+
